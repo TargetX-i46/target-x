@@ -28,19 +28,21 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.security.InvalidKeyException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -49,81 +51,105 @@ public class AuthController {
 
     @Autowired
     DeviceKeyService deviceKeyService;
-    @GetMapping("/key")
-    public ResponseEntity<Map<String, Object>> getKey(@RequestParam String deviceId) throws InvalidKeyException {
-        Map<String, Object> response = new HashMap<>();
-        DeviceKey deviceKey = deviceKeyService.get(deviceId);
-        response.put("key", deviceKey.getKeyVal());
-        TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
-        Instant now = Instant.now();
-        Key originalKey = new SecretKeySpec(deviceKey.getKeyVal().getBytes(), 0, 6, "HmacSHA512");
-        String otp = totp.generateOneTimePasswordString(originalKey, now);
 
-        response.put("otp", otp);
+    @GetMapping("/keys/available")
+    public ResponseEntity<Map<String, Object>> getUnusedKeys(@RequestParam String deviceId) {
+        Map<String, Object> response = new HashMap<>();
+        List<DeviceKey> deviceKeys = deviceKeyService.getAll(deviceId);
+        response.put("count", deviceKeys.size());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PostMapping("/otp/validate")
-    public ResponseEntity<Map<String, Object>> validateOtp(@RequestBody KeyRequest keyRequest) throws InvalidKeyException, NoSuchAlgorithmException {
+    @PostMapping("/key/validate")
+    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) {
         Map<String, Object> response = new HashMap<>();
+        if (keyRequest.getDeviceId() == null) {
+            response.put("error", "Device id is required");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+        if (keyRequest.getKey() == null) {
+            response.put("error", "Key is required");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
         DeviceKey deviceKey = deviceKeyService.get(keyRequest.getDeviceId());
-        TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
+        if (deviceKey == null) {
+            response.put("error", "Device id does not exist");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
 
-        Key originalKey = new SecretKeySpec(deviceKey.getKeyVal().getBytes(), 0, 6, "HmacSHA512");
-        Instant now = Instant.now();
-        String otp = totp.generateOneTimePasswordString(originalKey, now);
-        if (keyRequest.getPassword().equals(otp)){
-            DeviceKey deviceKeyNext = newKey(keyRequest.getDeviceId(), false);
-            if (deviceKeyNext != null ){
-                response.put("success", deviceKeyNext.getKeyVal());
-                return new ResponseEntity<>(response, HttpStatus.CREATED);
+        if (keyRequest.getKey().equals(deviceKey.getKeyVal())) {
+            DeviceKey deviceKeyNext = deviceKeyService.getNext(deviceKey.getDeviceId(), deviceKey.getSeq() +1);
+            if (deviceKeyNext == null){
+                response.put("key", "All keys are used. Contact system administrator");
+                return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
             }else{
-                response.put("error", "Not saved");
-                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                deviceKey.setResponseVal(deviceKeyNext.getKeyVal());
+                deviceKey = deviceKeyService.save(deviceKey);
+                response.put("key", deviceKey.getResponseVal());
+                return new ResponseEntity<>(response, HttpStatus.OK);
             }
-        }else{
-            response.put("fail", "Invalid OTP");
+
+        } else {
+            response.put("fail", "Invalid key");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
     }
 
-    @PostMapping("/key")
-    public ResponseEntity<Map<String, Object>> create(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException, InvalidKeyException {
-        Map<String, Object> response = new HashMap<>();
-        DeviceKey deviceKey = newKey(keyRequest.getDeviceId(), true);
-        response.put("key", deviceKey.getKeyVal());
-        TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
-        Instant now = Instant.now();
-        Key originalKey = new SecretKeySpec(deviceKey.getKeyVal().getBytes(), 0, 6, "HmacSHA512");
-        String otp = totp.generateOneTimePasswordString(originalKey, now);
-
-        response.put("otp", otp);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
-
-    private DeviceKey newKey(String deviceId, boolean register) throws NoSuchAlgorithmException {
-        TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(totp.getAlgorithm());
-
-        // Key length should match the length of the HMAC output (160 bits for SHA-1, 256 bits
-        // for SHA-256, and 512 bits for SHA-512). Note that while Mac#getMacLength() returns a
-        // length in _bytes,_ KeyGenerator#init(int) takes a key length in _bits._
-        int macLengthInBytes = Mac.getInstance(totp.getAlgorithm()).getMacLength();
-        keyGenerator.init(macLengthInBytes * 8);
-
-        Key key = keyGenerator.generateKey();
-        DeviceKey deviceKey = deviceKeyService.get(deviceId);
-        if (deviceKey == null){
-            deviceKey = new DeviceKey(deviceId, Hex.encodeHexString(key.getEncoded()));
-            return deviceKeyService.save(deviceKey);
-        }else{
-            if (register){
-               return deviceKey;
-            }else{
-                deviceKey.setKeyVal(Hex.encodeHexString(key.getEncoded()));
-                return deviceKeyService.save(deviceKey);
-            }
+    @PostMapping("/keys")
+    public ResponseEntity<Resource> generateKeys(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException {
+        if (keyRequest.getDeviceId() == null) {
+            logger.error("Device id is required");
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
+        if (deviceKeyService.existsByDeviceId(keyRequest.getDeviceId())) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
+        } else {
+            TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
+            StringBuilder inputBuffer = new StringBuilder();
+            HttpHeaders responseHeaders = new HttpHeaders();
+
+            for (int i = 1; i <= 1000; i++) {
+                KeyGenerator keyGenerator = KeyGenerator.getInstance(totp.getAlgorithm());
+
+                // Key length should match the length of the HMAC output (160 bits for SHA-1, 256 bits
+                // for SHA-256, and 512 bits for SHA-512). Note that while Mac#getMacLength() returns a
+                // length in _bytes,_ KeyGenerator#init(int) takes a key length in _bits._
+                int macLengthInBytes = Mac.getInstance(totp.getAlgorithm()).getMacLength();
+                keyGenerator.init(macLengthInBytes * 8);
+
+                Key key = keyGenerator.generateKey();
+
+                DeviceKey deviceKey = new DeviceKey(keyRequest.getDeviceId(), i, Hex.encodeHexString(key.getEncoded()), null);
+
+                deviceKeyService.save(deviceKey);
+
+                inputBuffer.append(deviceKey.getKeyVal()).append(",0");
+                inputBuffer.append('\n');
+            }
+
+            try {
+
+                String inputStr = inputBuffer.toString();
+
+                ContentDisposition contentDisposition = ContentDisposition.builder("inline")
+                        .filename("device" + keyRequest.getDeviceId() +"-secret-keys.csv")
+                        .build();
+                responseHeaders.setContentDisposition(contentDisposition);
+                InputStream stream = new ByteArrayInputStream(inputStr.getBytes(StandardCharsets.UTF_8));
+                InputStreamResource resource = new InputStreamResource(stream);
+                return ResponseEntity.ok()
+                        .headers(responseHeaders)
+                        .contentLength(stream.available())
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .body(resource);
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        }
+
     }
+
+
 }

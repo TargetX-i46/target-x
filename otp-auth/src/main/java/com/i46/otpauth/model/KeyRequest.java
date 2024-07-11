@@ -6,10 +6,10 @@ import lombok.Data;
 @Data
 public class KeyRequest {
     private String deviceId;
-    private String password;
+    private String key;
 
-    public KeyRequest(String deviceId, String password) {
+    public KeyRequest(String deviceId, String key) {
         this.deviceId = deviceId;
-        this.password = password;
+        this.key = key;
     }
 }
