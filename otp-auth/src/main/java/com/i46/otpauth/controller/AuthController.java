@@ -73,7 +73,7 @@ public class AuthController {
         Instant now = Instant.now();
         String otp = totp.generateOneTimePasswordString(originalKey, now);
         if (keyRequest.getPassword().equals(otp)){
-            DeviceKey deviceKeyNext = newKey(keyRequest.getDeviceId());
+            DeviceKey deviceKeyNext = newKey(keyRequest.getDeviceId(), false);
             if (deviceKeyNext != null ){
                 response.put("success", deviceKeyNext.getKeyVal());
                 return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -88,20 +88,21 @@ public class AuthController {
     }
 
     @PostMapping("/key")
-    public ResponseEntity<Map<String, Object>> create(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException {
+    public ResponseEntity<Map<String, Object>> create(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException, InvalidKeyException {
         Map<String, Object> response = new HashMap<>();
-        DeviceKey deviceKey = newKey(keyRequest.getDeviceId());
-        if (deviceKey != null ){
-            response.put("success", "New key generated");
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
-        }else{
-            response.put("error", "Not saved");
-            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        DeviceKey deviceKey = newKey(keyRequest.getDeviceId(), true);
+        response.put("key", deviceKey.getKeyVal());
+        TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
+        Instant now = Instant.now();
+        Key originalKey = new SecretKeySpec(deviceKey.getKeyVal().getBytes(), 0, 6, "HmacSHA512");
+        String otp = totp.generateOneTimePasswordString(originalKey, now);
+
+        response.put("otp", otp);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
 
-    private DeviceKey newKey(String deviceId) throws NoSuchAlgorithmException {
+    private DeviceKey newKey(String deviceId, boolean register) throws NoSuchAlgorithmException {
         TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
         KeyGenerator keyGenerator = KeyGenerator.getInstance(totp.getAlgorithm());
 
@@ -115,9 +116,14 @@ public class AuthController {
         DeviceKey deviceKey = deviceKeyService.get(deviceId);
         if (deviceKey == null){
             deviceKey = new DeviceKey(deviceId, Hex.encodeHexString(key.getEncoded()));
+            return deviceKeyService.save(deviceKey);
         }else{
-            deviceKey.setKeyVal(Hex.encodeHexString(key.getEncoded()));
+            if (register){
+               return deviceKey;
+            }else{
+                deviceKey.setKeyVal(Hex.encodeHexString(key.getEncoded()));
+                return deviceKeyService.save(deviceKey);
+            }
         }
-        return deviceKeyService.save(deviceKey);
     }
 }
