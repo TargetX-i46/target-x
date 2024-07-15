@@ -28,7 +28,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
@@ -55,6 +54,11 @@ public class AuthController {
     @GetMapping("/keys/available")
     public ResponseEntity<Map<String, Object>> getUnusedKeys(@RequestParam String deviceId) {
         Map<String, Object> response = new HashMap<>();
+        DeviceKey deviceKey = deviceKeyService.get(deviceId);
+        if (deviceKey == null) {
+            response.put("error", "Device id does not exist");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
         List<DeviceKey> deviceKeys = deviceKeyService.getAll(deviceId);
         response.put("count", deviceKeys.size());
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -123,7 +127,7 @@ public class AuthController {
 
                 deviceKeyService.save(deviceKey);
 
-                inputBuffer.append(deviceKey.getKeyVal()).append(",0");
+                inputBuffer.append(deviceKey.getKeyVal());
                 inputBuffer.append('\n');
             }
 
