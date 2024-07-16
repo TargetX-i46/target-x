@@ -20,7 +20,6 @@
 
 package com.i46.otpauth.controller;
 
-import com.eatthepath.otp.TimeBasedOneTimePasswordGenerator;
 import com.i46.otpauth.model.KeyRequest;
 import com.i46.otpauth.model.entity.DeviceKey;
 import com.i46.otpauth.model.service.DeviceKeyService;
@@ -39,7 +38,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,19 +107,16 @@ public class AuthController {
         if (deviceKeyService.existsByDeviceId(keyRequest.getDeviceId())) {
             return new ResponseEntity<>(HttpStatus.CONFLICT);
         } else {
-            TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator(Duration.ofSeconds(30L), 6, "HmacSHA512");
+
             StringBuilder inputBuffer = new StringBuilder();
             HttpHeaders responseHeaders = new HttpHeaders();
 
             for (int i = 1; i <= 1000; i++) {
-                KeyGenerator keyGenerator = KeyGenerator.getInstance(totp.getAlgorithm());
+                SecureRandom secureRandom = new SecureRandom();
+                int keyBitSize = 128;
 
-                // Key length should match the length of the HMAC output (160 bits for SHA-1, 256 bits
-                // for SHA-256, and 512 bits for SHA-512). Note that while Mac#getMacLength() returns a
-                // length in _bytes,_ KeyGenerator#init(int) takes a key length in _bits._
-                int macLengthInBytes = Mac.getInstance(totp.getAlgorithm()).getMacLength();
-                keyGenerator.init(macLengthInBytes * 8);
-
+                KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+                keyGenerator.init(keyBitSize, secureRandom);
                 Key key = keyGenerator.generateKey();
 
                 DeviceKey deviceKey = new DeviceKey(keyRequest.getDeviceId(), i, Hex.encodeHexString(key.getEncoded()), null);
@@ -136,7 +132,7 @@ public class AuthController {
                 String inputStr = inputBuffer.toString();
 
                 ContentDisposition contentDisposition = ContentDisposition.builder("inline")
-                        .filename("device" + keyRequest.getDeviceId() +"-secret-keys.csv")
+                        .filename("device" + keyRequest.getDeviceId() + "_secret-keys.csv")
                         .build();
                 responseHeaders.setContentDisposition(contentDisposition);
                 InputStream stream = new ByteArrayInputStream(inputStr.getBytes(StandardCharsets.UTF_8));
