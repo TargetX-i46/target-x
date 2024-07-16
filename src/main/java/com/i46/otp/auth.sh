@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#before running script, run manually based on next.txt key
+#nmcli connection add type wifi con-name ebeccfefae5fb095a524d6eae466170b autoconnect no ssid ebeccfefae5fb095a524d6eae466170b
+# * * * * * /opt/utils/auth.sh
+
 KEY_FILE=secret-keys.csv
 NEXT_FILE=next.txt
 OTHER_KEY_FILE=device$1_secret-keys.csv
@@ -22,6 +26,9 @@ if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ] && [ -s $OTHER_KEY_FILE ]  && [ -s $OT
  #finding the other device
   OTHER_KEY=$(cat $OTHER_NEXT_FILE)
   echo "Device "$1" Current key" $OTHER_KEY
+  #uncomment to test
+  #RESPONSE=$(nmcli connection show | grep $OTHER_KEY)
+  #comment on test
   RESPONSE=$(nmcli -f SSID,BSSID,DEVICE dev wifi | grep $OTHER_KEY)
   echo $RESPONSE
     if [ -z "$RESPONSE" ]; then
