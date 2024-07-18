@@ -5,12 +5,13 @@ Setup:
 2 Devices
 
 Files:
-IoT Gateway - next.txt, secret-keys.csv
-Device - device{id}_next.txt, device{id}_secret-keys.csv
 
-Scripts:
-1 script for IoT gateway - auth-gateway.sh
-1 script for each device - auth.sh
+Own keys - next.txt, secret-keys.csv
+Other keys - device{id}_next.txt, device{id}_secret-keys.csv
+
+
+Script:
+auth.sh <device 1> <device n>
 
 To manually test the script, check the line
 #uncomment to test
@@ -21,4 +22,13 @@ Before running the scripts on each machines, run this command manually based on 
 #nmcli connection add type wifi con-name 75bab779c3fac998732ccbfa8f9160ee autoconnect no ssid 75bab779c3fac998732ccbfa8f9160ee
 
 After running once, place this script in crontab
-# * * * * * /opt/utils/auth.sh
+# * * * * * /opt/utils/auth.sh 3005 3006
+
+Test
+
+Run from IoT gateway:
+./auth.sh 3005 3006
+
+Run from device (3005, etc.):
+./auth.sh iot-gateway
+

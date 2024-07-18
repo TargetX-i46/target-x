@@ -1,15 +1,23 @@
 #!/bin/bash
 
 #before running script, run manually based on next.txt key
-#nmcli connection add type wifi con-name ebeccfefae5fb095a524d6eae466170b autoconnect no ssid ebeccfefae5fb095a524d6eae466170b
+#nmcli connection add type wifi con-name 75bab779c3fac998732ccbfa8f9160ee autoconnect no ssid 75bab779c3fac998732ccbfa8f9160ee
+#also run the same command (replace respective keys) in the other devices
 # * * * * * /opt/utils/auth.sh
 
 KEY_FILE=secret-keys.csv
 NEXT_FILE=next.txt
-OTHER_KEY_FILE=device$1_secret-keys.csv
-OTHER_NEXT_FILE=device$1_next.txt
 
-if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ] && [ -s $OTHER_KEY_FILE ]  && [ -s $OTHER_NEXT_FILE ]; then
+if [ -z "$1" ]; then
+ echo "Enter the device ids you want to detect. Ex. 3005 3006 3007"
+ exit 1
+else
+ OTHER_KEY_FILE1=device$1_secret-keys.csv
+ OTHER_NEXT_FILE1=device$1_next.txt
+fi
+
+
+if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ]; then
  KEY=$(cat $NEXT_FILE)
  echo "Current key" $KEY
 
@@ -23,29 +31,41 @@ if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ] && [ -s $OTHER_KEY_FILE ]  && [ -s $OT
  nmcli connection add type wifi con-name $MY_NEXT_KEY autoconnect no ssid $MY_NEXT_KEY
  nmcli connection show | grep $MY_NEXT_KEY
 
- #finding the other device
-  OTHER_KEY=$(cat $OTHER_NEXT_FILE)
-  echo "Device "$1" Current key" $OTHER_KEY
-  #uncomment to test
-  #RESPONSE=$(nmcli connection show | grep $OTHER_KEY)
-  #comment on test
-  RESPONSE=$(nmcli -f SSID,BSSID,DEVICE dev wifi | grep $OTHER_KEY)
-  echo $RESPONSE
-    if [ -z "$RESPONSE" ]; then
-       echo "Device "$1" not found"
-       exit 1
-    else
-       RESPONSE_KEY=$(echo $RESPONSE | awk '{print $1;}')
-       echo $RESPONSE_KEY
-       echo "Device "$1" is within range"
+  #finding the other devices
 
-         OTHER_LINE=$(awk '/'$OTHER_KEY'/{ print NR; exit }' $OTHER_KEY_FILE)
-         OTHER_NEXT=$((OTHER_LINE + 1))
-         OTHER_NEXT_KEY=$(awk 'NR == '$OTHER_NEXT $OTHER_KEY_FILE)
-         echo "Device "$1" next key" $OTHER_NEXT_KEY
+  for i in "$@"
+  do
+     OTHER_KEY_FILE=device"$i"_secret-keys.csv
+     OTHER_NEXT_FILE=device"$i"_next.txt
 
-        echo $OTHER_NEXT_KEY | tee $OTHER_NEXT_FILE >> /dev/null
-    fi
+     if [ -s $OTHER_KEY_FILE ]  && [ -s $OTHER_NEXT_FILE ]; then
+         OTHER_KEY=$(cat $OTHER_NEXT_FILE)
+         echo "Device "$i" Current key" $OTHER_KEY
+         #uncomment to test
+         RESPONSE=$(nmcli connection show | grep $OTHER_KEY)
+         #comment on test
+         RESPONSE=$(nmcli -f SSID,BSSID,DEVICE dev wifi | grep $OTHER_KEY)
+         echo $RESPONSE
+         if [ -z "$RESPONSE" ]; then
+            echo "Device "$i" not found"
+            exit 1
+         else
+            RESPONSE_KEY=$(echo $RESPONSE | awk '{print $i;}')
+            echo $RESPONSE_KEY
+            echo "Device "$i" is within range"
+
+              OTHER_LINE=$(awk '/'$OTHER_KEY'/{ print NR; exit }' $OTHER_KEY_FILE)
+              OTHER_NEXT=$((OTHER_LINE + 1))
+              OTHER_NEXT_KEY=$(awk 'NR == '$OTHER_NEXT $OTHER_KEY_FILE)
+              echo "Device "$i" next key" $OTHER_NEXT_KEY
+              #uncomment to test
+              #nmcli connection add type wifi con-name $OTHER_NEXT_KEY autoconnect no ssid $OTHER_NEXT_KEY
+             echo $OTHER_NEXT_KEY | tee $OTHER_NEXT_FILE >> /dev/null
+         fi
+       else
+         echo "Device "$i" key file not found"
+       fi
+  done
 else
-  echo "Enter the device id you want to detect. Ex. 3006"
+  echo "Key file not found"
 fi
