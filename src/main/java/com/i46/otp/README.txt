@@ -2,7 +2,7 @@ Proximity Test
 
 Setup:
 1 IoT Gateway
-2 Devices
+1~n Devices
 
 Files:
 
