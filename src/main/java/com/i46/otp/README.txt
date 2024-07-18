@@ -18,7 +18,7 @@ To manually test the script, check the line
 remove the comment for testing, and comment the other line that is for prod.
 In prod environment, make sure to comment the test lines again.
 
-Before running the scripts on each machines, run this command manually based on next.txt key
+Before running the scripts on each machine, run this command manually based on next.txt key
 #nmcli connection add type wifi con-name 75bab779c3fac998732ccbfa8f9160ee autoconnect no ssid 75bab779c3fac998732ccbfa8f9160ee
 
 After running once, place this script in crontab
