@@ -42,7 +42,7 @@ if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ]; then
          OTHER_KEY=$(cat $OTHER_NEXT_FILE)
          echo "Device "$i" Current key" $OTHER_KEY
          #uncomment to test
-         RESPONSE=$(nmcli connection show | grep $OTHER_KEY)
+         #RESPONSE=$(nmcli connection show | grep $OTHER_KEY)
          #comment on test
          RESPONSE=$(nmcli -f SSID,BSSID,DEVICE dev wifi | grep $OTHER_KEY)
          echo $RESPONSE
