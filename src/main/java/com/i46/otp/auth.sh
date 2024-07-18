@@ -50,7 +50,7 @@ if [ -s $KEY_FILE ]  && [ -s $NEXT_FILE ]; then
             echo "Device "$i" not found"
             exit 1
          else
-            RESPONSE_KEY=$(echo $RESPONSE | awk '{print $i;}')
+            RESPONSE_KEY=$(echo $RESPONSE | awk '{print $1;}')
             echo $RESPONSE_KEY
             echo "Device "$i" is within range"
 
