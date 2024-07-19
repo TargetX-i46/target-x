@@ -18,17 +18,19 @@ To manually test the script, check the line
 remove the comment for testing, and comment the other line that is for prod.
 In prod environment, make sure to comment the test lines again.
 
-Before running the scripts on each machine, run this command manually based on next.txt key
-#nmcli connection add type wifi con-name 75bab779c3fac998732ccbfa8f9160ee autoconnect no ssid 75bab779c3fac998732ccbfa8f9160ee
+Before running the scripts on each machine, run this command manually on the gateway. This is based on next.txt of the devices the gateway wants to detect
+nmcli connection add type wifi con-name ebeccfefae5fb095a524d6eae466170b autoconnect no ssid ebeccfefae5fb095a524d6eae466170b
+nmcli connection add type wifi con-name 55bf04a61467ba92692bd4a6b11ee6e0 autoconnect no ssid 55bf04a61467ba92692bd4a6b11ee6e0
 
-After running once, place this script in crontab
-# * * * * * /opt/utils/auth.sh 3005 3006
-
-Test
+After running the manual commands, place this script in crontab
 
 Run from IoT gateway:
-./auth.sh 3005 3006
+sudo su
+crontab -e
+* * * * * /opt/utils/gateway/auth.sh 3005 3006 >> /opt/utils/gateway.log
 
 Run from device (3005, etc.):
-./auth.sh iot-gateway
+sudo su
+crontab -e
+* * * * * /opt/utils/device3005/auth.sh gateway >> /opt/utils/device.log
 
