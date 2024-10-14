@@ -8,12 +8,12 @@
         <version>3.3.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.i46</groupId>
-    <artifactId>otp-auth</artifactId>
+    <groupId>com.targetx</groupId>
+    <artifactId>target-x</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>otp-auth</name>
-    <description>otp-auth</description>
+    <name>target-x</name>
+    <description>Target X SafeBox</description>
     <url/>
     <licenses>
         <license/>

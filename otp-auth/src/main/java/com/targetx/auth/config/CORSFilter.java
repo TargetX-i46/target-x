@@ -1,4 +1,4 @@
-package com.i46.otpauth.config;
+package com.targetx.auth.config;
 
 
 import jakarta.servlet.*;

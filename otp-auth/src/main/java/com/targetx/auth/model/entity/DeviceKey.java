@@ -1,7 +1,9 @@
-package com.i46.otpauth.model.entity;
+package com.targetx.auth.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.util.UUID;
 
 @Entity(name = "device_key")
 @Data
@@ -11,11 +13,11 @@ public class DeviceKey {
     @Column(name = "id")
     private Integer id;
 
+    @Column(name = "device_id")
+    private UUID deviceId;
+
     @Column(name = "seq")
     private Integer seq;
-
-    @Column(name = "device_id")
-    private String deviceId;
 
     @Column(name = "key_val")
     private String keyVal;
@@ -26,7 +28,7 @@ public class DeviceKey {
     public DeviceKey() {
     }
 
-    public DeviceKey(String deviceId, Integer seq, String keyVal, String responseVal) {
+    public DeviceKey(UUID deviceId, Integer seq, String keyVal, String responseVal) {
         this.deviceId = deviceId;
         this.seq = seq;
         this.keyVal = keyVal;

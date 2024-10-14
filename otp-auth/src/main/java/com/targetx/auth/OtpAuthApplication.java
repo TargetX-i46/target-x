@@ -1,4 +1,4 @@
-package com.i46.otpauth;
+package com.targetx.auth;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

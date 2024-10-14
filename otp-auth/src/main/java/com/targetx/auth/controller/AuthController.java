@@ -1,82 +1,108 @@
-/* Copyright (c) 2016 Jon Chambers
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE. */
+package com.targetx.auth.controller;
 
-package com.i46.otpauth.controller;
-
-import com.i46.otpauth.model.KeyRequest;
-import com.i46.otpauth.model.entity.DeviceKey;
-import com.i46.otpauth.model.service.DeviceKeyService;
+import com.targetx.auth.model.KeyRequest;
+import com.targetx.auth.model.DeviceDTO;
+import com.targetx.auth.model.entity.Device;
+import com.targetx.auth.model.entity.DeviceKey;
+import com.targetx.auth.model.service.DeviceKeyService;
+import com.targetx.auth.model.service.DeviceService;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.KeyGenerator;
-import javax.crypto.Mac;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Timestamp;
+import java.util.*;
 
 @RestController
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
+    DeviceService deviceService;
+
+    @Autowired
     DeviceKeyService deviceKeyService;
 
+    @Value("${targetx.keys.max}")
+    private Integer MAX_KEYS;
+
     @GetMapping("/keys/available")
-    public ResponseEntity<Map<String, Object>> getUnusedKeys(@RequestParam String deviceId) {
+    public ResponseEntity<Map<String, Object>> getUnusedKeys(@RequestParam UUID uuid) {
         Map<String, Object> response = new HashMap<>();
-        DeviceKey deviceKey = deviceKeyService.get(deviceId);
+        DeviceKey deviceKey = deviceKeyService.get(uuid);
         if (deviceKey == null) {
             response.put("error", "Device id does not exist");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-        List<DeviceKey> deviceKeys = deviceKeyService.getAll(deviceId);
+        List<DeviceKey> deviceKeys = deviceKeyService.getAllUnused(uuid);
         response.put("count", deviceKeys.size());
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/keys/download")
+    public ResponseEntity<Resource> getAll(@RequestParam UUID uuid) {
+        Optional<Device> optDevice = deviceService.get(uuid);
+        if (optDevice.isPresent()){
+            Device device = optDevice.get();
+            List<DeviceKey> deviceKeys = deviceKeyService.getAll(uuid);
+            StringBuilder inputBuffer = new StringBuilder();
+            for(DeviceKey key: deviceKeys){
+                inputBuffer.append(key.getKeyVal());
+                inputBuffer.append('\n');
+            }
+
+            try {
+
+                String inputStr = inputBuffer.toString();
+                HttpHeaders responseHeaders = new HttpHeaders();
+                ContentDisposition contentDisposition = ContentDisposition.builder("inline")
+                        .filename("device" + device.getDeviceName() + "_secret-keys.csv")
+                        .build();
+                responseHeaders.setContentDisposition(contentDisposition);
+                InputStream stream = new ByteArrayInputStream(inputStr.getBytes(StandardCharsets.UTF_8));
+                InputStreamResource resource = new InputStreamResource(stream);
+                return ResponseEntity.ok()
+                        .headers(responseHeaders)
+                        .contentLength(stream.available())
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .body(resource);
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }else{
+            logger.error("Device id not found");
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
     }
 
     @PostMapping("/key/validate")
     public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) {
         Map<String, Object> response = new HashMap<>();
-        if (keyRequest.getDeviceId() == null) {
-            response.put("error", "Device id is required");
+        if (keyRequest.getUuid() == null) {
+            response.put("error", "Device id (UUID) is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
         if (keyRequest.getKey() == null) {
             response.put("error", "Key is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-        DeviceKey deviceKey = deviceKeyService.get(keyRequest.getDeviceId());
+        DeviceKey deviceKey = deviceKeyService.get(keyRequest.getUuid());
         if (deviceKey == null) {
-            response.put("error", "Device id does not exist");
+            response.put("error", "Device does not exist");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
@@ -99,19 +125,24 @@ public class AuthController {
     }
 
     @PostMapping("/keys")
-    public ResponseEntity<Resource> generateKeys(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException {
-        if (keyRequest.getDeviceId() == null) {
-            logger.error("Device id is required");
+    public ResponseEntity<Resource> generateKeys(@RequestBody DeviceDTO deviceDTO) throws NoSuchAlgorithmException {
+        if (deviceDTO.getDeviceName() == null) {
+            logger.error("Device name is required");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        if (deviceKeyService.existsByDeviceId(keyRequest.getDeviceId())) {
+        if (deviceService.existsByDeviceName(deviceDTO.getDeviceName())) {
             return new ResponseEntity<>(HttpStatus.CONFLICT);
         } else {
 
             StringBuilder inputBuffer = new StringBuilder();
             HttpHeaders responseHeaders = new HttpHeaders();
+            Calendar cal = Calendar.getInstance();
+            Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
 
-            for (int i = 1; i <= 1000; i++) {
+            Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
+            Device deviceSave = deviceService.save(device);
+
+            for (int i = 1; i <= MAX_KEYS; i++) {
                 SecureRandom secureRandom = new SecureRandom();
                 int keyBitSize = 128;
 
@@ -119,8 +150,7 @@ public class AuthController {
                 keyGenerator.init(keyBitSize, secureRandom);
                 Key key = keyGenerator.generateKey();
 
-                DeviceKey deviceKey = new DeviceKey(keyRequest.getDeviceId(), i, Hex.encodeHexString(key.getEncoded()), null);
-
+                DeviceKey deviceKey = new DeviceKey(deviceSave.getId(), i, Hex.encodeHexString(key.getEncoded()), null);
                 deviceKeyService.save(deviceKey);
 
                 inputBuffer.append(deviceKey.getKeyVal());
@@ -132,7 +162,7 @@ public class AuthController {
                 String inputStr = inputBuffer.toString();
 
                 ContentDisposition contentDisposition = ContentDisposition.builder("inline")
-                        .filename("device" + keyRequest.getDeviceId() + "_secret-keys.csv")
+                        .filename("device" + deviceDTO.getDeviceName() + "_secret-keys.csv")
                         .build();
                 responseHeaders.setContentDisposition(contentDisposition);
                 InputStream stream = new ByteArrayInputStream(inputStr.getBytes(StandardCharsets.UTF_8));
