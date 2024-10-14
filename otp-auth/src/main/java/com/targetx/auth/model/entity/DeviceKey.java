@@ -11,7 +11,7 @@ public class DeviceKey {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private Integer id;
+    private long id;
 
     @Column(name = "device_id")
     private UUID deviceId;

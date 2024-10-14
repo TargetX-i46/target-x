@@ -4,8 +4,10 @@ import com.targetx.auth.model.KeyRequest;
 import com.targetx.auth.model.DeviceDTO;
 import com.targetx.auth.model.entity.Device;
 import com.targetx.auth.model.entity.DeviceKey;
+import com.targetx.auth.model.entity.DiskMountKey;
 import com.targetx.auth.model.service.DeviceKeyService;
 import com.targetx.auth.model.service.DeviceService;
+import com.targetx.auth.model.service.DiskMountKeyService;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,9 @@ public class AuthController {
 
     @Autowired
     DeviceKeyService deviceKeyService;
+
+    @Autowired
+    DiskMountKeyService diskMountKeyService;
 
     @Value("${targetx.keys.max}")
     private Integer MAX_KEYS;
@@ -89,6 +94,18 @@ public class AuthController {
 
     }
 
+    @GetMapping("/diskKey")
+    public DiskMountKey getDiskKey(@RequestParam UUID uuid) {
+        Optional<DiskMountKey> optKey = diskMountKeyService.get(uuid);
+        if (optKey.isPresent()){
+            return optKey.get();
+        }else{
+            logger.error("Device id not found");
+            return null;
+        }
+
+    }
+
     @PostMapping("/key/validate")
     public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) {
         Map<String, Object> response = new HashMap<>();
@@ -130,9 +147,11 @@ public class AuthController {
             logger.error("Device name is required");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        if (deviceService.existsByDeviceName(deviceDTO.getDeviceName())) {
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
-        } else {
+
+            int keyBitSize = 128;
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+
+            SecureRandom secureRandom = new SecureRandom();
 
             StringBuilder inputBuffer = new StringBuilder();
             HttpHeaders responseHeaders = new HttpHeaders();
@@ -142,11 +161,15 @@ public class AuthController {
             Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
             Device deviceSave = deviceService.save(device);
 
-            for (int i = 1; i <= MAX_KEYS; i++) {
-                SecureRandom secureRandom = new SecureRandom();
-                int keyBitSize = 128;
+            DiskMountKey diskMountKey = new DiskMountKey();
+            diskMountKey.setDeviceId(deviceSave.getId());
 
-                KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+            keyGenerator.init(keyBitSize, secureRandom);
+            Key keyDisk = keyGenerator.generateKey();
+            diskMountKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
+            diskMountKeyService.save(diskMountKey);
+
+            for (int i = 1; i <= MAX_KEYS; i++) {
                 keyGenerator.init(keyBitSize, secureRandom);
                 Key key = keyGenerator.generateKey();
 
@@ -179,7 +202,7 @@ public class AuthController {
 
         }
 
-    }
+
 
 
 }
