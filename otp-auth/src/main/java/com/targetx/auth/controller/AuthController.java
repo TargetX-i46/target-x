@@ -95,15 +95,46 @@ public class AuthController {
     }
 
     @GetMapping("/diskKey")
-    public SafeKey getDiskKey(@RequestParam UUID uuid) {
+    public ResponseEntity<Map<String, Object>> getDiskKey(@RequestParam UUID uuid) {
+        Map<String, Object> response = new HashMap<>();
         Optional<SafeKey> optKey = safeKeyService.get(uuid);
         if (optKey.isPresent()){
-            return optKey.get();
+            response.put("key", optKey.get().getDiskKey());
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }else{
-            logger.error("Device id not found");
-            return null;
+            response.put("error", "Device id not found");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
+    }
+
+    private SafeKey generateSafeKeys(UUID deviceId, String diskKey) throws NoSuchAlgorithmException{
+        int keyBitSize = 128;
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+
+        SecureRandom secureRandom = new SecureRandom();
+        SafeKey safeKey = new SafeKey();
+        safeKey.setDeviceId(deviceId);
+
+        if (diskKey == null){
+            keyGenerator.init(keyBitSize, secureRandom);
+            Key keyDisk = keyGenerator.generateKey();
+            safeKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
+        }else{
+            safeKey.setDiskKey(diskKey);
+        }
+
+        Key currentKey = keyGenerator.generateKey();
+        keyGenerator.init(keyBitSize, secureRandom);
+        safeKey.setCurrentKey(Hex.encodeHexString(currentKey.getEncoded()));
+        Key nextKey = keyGenerator.generateKey();
+        keyGenerator.init(keyBitSize, secureRandom);
+        safeKey.setNextKey(Hex.encodeHexString(nextKey.getEncoded()));
+        Key encryptionKey = keyGenerator.generateKey();
+        keyGenerator.init(keyBitSize, secureRandom);
+        safeKey.setEncryptionKey(Hex.encodeHexString(encryptionKey.getEncoded()));
+
+        return safeKey;
     }
 
     @PostMapping("/key/validate")
@@ -130,9 +161,26 @@ public class AuthController {
                 return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
             }else{
                 deviceKey.setResponseVal(deviceKeyNext.getKeyVal());
-                deviceKey = deviceKeyService.save(deviceKey);
-                response.put("key", deviceKey.getResponseVal());
-                return new ResponseEntity<>(response, HttpStatus.OK);
+                DeviceKey deviceKeySave = deviceKeyService.save(deviceKey);
+                Optional<SafeKey> safeKey = safeKeyService.get(deviceKey.getDeviceId());
+                if (safeKey.isPresent()) {
+                    SafeKey safeKeyResult = safeKey.get();
+                    response.put("responseKey", deviceKeySave.getResponseVal());
+                    response.put("currentKey", safeKeyResult.getCurrentKey());
+                    response.put("nextKey", safeKeyResult.getNextKey());
+                    response.put("encryptionKey", safeKeyResult.getEncryptionKey());
+
+
+                    SafeKey safeKeyNext = generateSafeKeys(safeKeyResult.getDeviceId(), safeKeyResult.getDiskKey());
+                    safeKeyService.save(safeKeyNext);
+
+
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }else{
+                    response.put("error", "Key not found");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+
             }
 
         } else {
@@ -161,25 +209,9 @@ public class AuthController {
             Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
             Device deviceSave = deviceService.save(device);
 
-            SafeKey diskMountKey = new SafeKey();
-            diskMountKey.setDeviceId(deviceSave.getId());
+            SafeKey safeKey = generateSafeKeys(deviceSave.getId(), null);
 
-            keyGenerator.init(keyBitSize, secureRandom);
-            Key keyDisk = keyGenerator.generateKey();
-            diskMountKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
-
-
-            Key currentKey = keyGenerator.generateKey();
-            keyGenerator.init(keyBitSize, secureRandom);
-            diskMountKey.setCurrentKey(Hex.encodeHexString(currentKey.getEncoded()));
-            Key nextKey = keyGenerator.generateKey();
-            keyGenerator.init(keyBitSize, secureRandom);
-            diskMountKey.setNextKey(Hex.encodeHexString(nextKey.getEncoded()));
-            Key encryptionKey = keyGenerator.generateKey();
-            keyGenerator.init(keyBitSize, secureRandom);
-            diskMountKey.setEncryptionKey(Hex.encodeHexString(encryptionKey.getEncoded()));
-
-            safeKeyService.save(diskMountKey);
+            safeKeyService.save(safeKey);
 
             for (int i = 1; i <= MAX_KEYS; i++) {
                 keyGenerator.init(keyBitSize, secureRandom);
