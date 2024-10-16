@@ -4,10 +4,10 @@ import com.targetx.auth.model.KeyRequest;
 import com.targetx.auth.model.DeviceDTO;
 import com.targetx.auth.model.entity.Device;
 import com.targetx.auth.model.entity.DeviceKey;
-import com.targetx.auth.model.entity.DiskMountKey;
+import com.targetx.auth.model.entity.SafeKey;
 import com.targetx.auth.model.service.DeviceKeyService;
 import com.targetx.auth.model.service.DeviceService;
-import com.targetx.auth.model.service.DiskMountKeyService;
+import com.targetx.auth.model.service.SafeKeyService;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,7 @@ public class AuthController {
     DeviceKeyService deviceKeyService;
 
     @Autowired
-    DiskMountKeyService diskMountKeyService;
+    SafeKeyService safeKeyService;
 
     @Value("${targetx.keys.max}")
     private Integer MAX_KEYS;
@@ -95,8 +95,8 @@ public class AuthController {
     }
 
     @GetMapping("/diskKey")
-    public DiskMountKey getDiskKey(@RequestParam UUID uuid) {
-        Optional<DiskMountKey> optKey = diskMountKeyService.get(uuid);
+    public SafeKey getDiskKey(@RequestParam UUID uuid) {
+        Optional<SafeKey> optKey = safeKeyService.get(uuid);
         if (optKey.isPresent()){
             return optKey.get();
         }else{
@@ -107,7 +107,7 @@ public class AuthController {
     }
 
     @PostMapping("/key/validate")
-    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) {
+    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException {
         Map<String, Object> response = new HashMap<>();
         if (keyRequest.getUuid() == null) {
             response.put("error", "Device id (UUID) is required");
@@ -161,13 +161,25 @@ public class AuthController {
             Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
             Device deviceSave = deviceService.save(device);
 
-            DiskMountKey diskMountKey = new DiskMountKey();
+            SafeKey diskMountKey = new SafeKey();
             diskMountKey.setDeviceId(deviceSave.getId());
 
             keyGenerator.init(keyBitSize, secureRandom);
             Key keyDisk = keyGenerator.generateKey();
             diskMountKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
-            diskMountKeyService.save(diskMountKey);
+
+
+            Key currentKey = keyGenerator.generateKey();
+            keyGenerator.init(keyBitSize, secureRandom);
+            diskMountKey.setCurrentKey(Hex.encodeHexString(currentKey.getEncoded()));
+            Key nextKey = keyGenerator.generateKey();
+            keyGenerator.init(keyBitSize, secureRandom);
+            diskMountKey.setNextKey(Hex.encodeHexString(nextKey.getEncoded()));
+            Key encryptionKey = keyGenerator.generateKey();
+            keyGenerator.init(keyBitSize, secureRandom);
+            diskMountKey.setEncryptionKey(Hex.encodeHexString(encryptionKey.getEncoded()));
+
+            safeKeyService.save(diskMountKey);
 
             for (int i = 1; i <= MAX_KEYS; i++) {
                 keyGenerator.init(keyBitSize, secureRandom);
