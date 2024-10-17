@@ -43,6 +43,8 @@ public class AuthController {
     @Value("${targetx.keys.max}")
     private Integer MAX_KEYS;
 
+    private final Integer keyBits = 128;
+
     @GetMapping("/keys/available")
     public ResponseEntity<Map<String, Object>> getUnusedKeys(@RequestParam UUID uuid) {
         Map<String, Object> response = new HashMap<>();
@@ -108,8 +110,7 @@ public class AuthController {
 
     }
 
-    private SafeKey generateSafeKeys(UUID deviceId, String diskKey) throws NoSuchAlgorithmException{
-        int keyBitSize = 128;
+    private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String currentKey) throws NoSuchAlgorithmException{
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
 
         SecureRandom secureRandom = new SecureRandom();
@@ -117,21 +118,26 @@ public class AuthController {
         safeKey.setDeviceId(deviceId);
 
         if (diskKey == null){
-            keyGenerator.init(keyBitSize, secureRandom);
+            keyGenerator.init(keyBits, secureRandom);
             Key keyDisk = keyGenerator.generateKey();
             safeKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
         }else{
             safeKey.setDiskKey(diskKey);
         }
 
-        Key currentKey = keyGenerator.generateKey();
-        keyGenerator.init(keyBitSize, secureRandom);
-        safeKey.setCurrentKey(Hex.encodeHexString(currentKey.getEncoded()));
+        if (currentKey == null){
+            Key current = keyGenerator.generateKey();
+            keyGenerator.init(keyBits, secureRandom);
+            safeKey.setCurrentKey(Hex.encodeHexString(current.getEncoded()));
+        }else{
+            safeKey.setCurrentKey(currentKey);
+        }
+
         Key nextKey = keyGenerator.generateKey();
-        keyGenerator.init(keyBitSize, secureRandom);
+        keyGenerator.init(keyBits, secureRandom);
         safeKey.setNextKey(Hex.encodeHexString(nextKey.getEncoded()));
         Key encryptionKey = keyGenerator.generateKey();
-        keyGenerator.init(keyBitSize, secureRandom);
+        keyGenerator.init(keyBits, secureRandom);
         safeKey.setEncryptionKey(Hex.encodeHexString(encryptionKey.getEncoded()));
 
         return safeKey;
@@ -171,7 +177,7 @@ public class AuthController {
                     response.put("encryptionKey", safeKeyResult.getEncryptionKey());
 
 
-                    SafeKey safeKeyNext = generateSafeKeys(safeKeyResult.getDeviceId(), safeKeyResult.getDiskKey());
+                    SafeKey safeKeyNext = generateSafeKeys(safeKeyResult.getDeviceId(), safeKeyResult.getNextKey(), safeKeyResult.getEncryptionKey());
                     safeKeyService.save(safeKeyNext);
 
 
@@ -196,7 +202,6 @@ public class AuthController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-            int keyBitSize = 128;
             KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
 
             SecureRandom secureRandom = new SecureRandom();
@@ -209,12 +214,12 @@ public class AuthController {
             Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
             Device deviceSave = deviceService.save(device);
 
-            SafeKey safeKey = generateSafeKeys(deviceSave.getId(), null);
+            SafeKey safeKey = generateSafeKeys(deviceSave.getId(), null, null);
 
             safeKeyService.save(safeKey);
 
             for (int i = 1; i <= MAX_KEYS; i++) {
-                keyGenerator.init(keyBitSize, secureRandom);
+                keyGenerator.init(keyBits, secureRandom);
                 Key key = keyGenerator.generateKey();
 
                 DeviceKey deviceKey = new DeviceKey(deviceSave.getId(), i, Hex.encodeHexString(key.getEncoded()), null);
@@ -245,8 +250,4 @@ public class AuthController {
             }
 
         }
-
-
-
-
 }
