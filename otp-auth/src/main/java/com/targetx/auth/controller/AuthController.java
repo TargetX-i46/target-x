@@ -101,7 +101,7 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         Optional<SafeKey> optKey = safeKeyService.get(uuid);
         if (optKey.isPresent()){
-            response.put("key", optKey.get().getDiskKey());
+            response.put("diskKey", optKey.get().getDiskKey());
             return new ResponseEntity<>(response, HttpStatus.OK);
         }else{
             response.put("error", "Device id not found");
@@ -110,14 +110,15 @@ public class AuthController {
 
     }
 
-    private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String currentKey) throws NoSuchAlgorithmException{
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+    private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String storageKey) throws NoSuchAlgorithmException{
+        KeyGenerator keyGenerator;
 
         SecureRandom secureRandom = new SecureRandom();
         SafeKey safeKey = new SafeKey();
         safeKey.setDeviceId(deviceId);
 
         if (diskKey == null){
+            keyGenerator = KeyGenerator.getInstance("AES");
             keyGenerator.init(keyBits, secureRandom);
             Key keyDisk = keyGenerator.generateKey();
             safeKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
@@ -125,42 +126,41 @@ public class AuthController {
             safeKey.setDiskKey(diskKey);
         }
 
-        if (currentKey == null){
-            Key current = keyGenerator.generateKey();
+        if (storageKey == null){
+            keyGenerator = KeyGenerator.getInstance("AES");
             keyGenerator.init(keyBits, secureRandom);
-            safeKey.setCurrentKey(Hex.encodeHexString(current.getEncoded()));
+            Key current = keyGenerator.generateKey();
+            safeKey.setStorageKey(Hex.encodeHexString(current.getEncoded()));
         }else{
-            safeKey.setCurrentKey(currentKey);
+            safeKey.setStorageKey(storageKey);
         }
 
-        Key nextKey = keyGenerator.generateKey();
+        keyGenerator = KeyGenerator.getInstance("AES");
         keyGenerator.init(keyBits, secureRandom);
-        safeKey.setNextKey(Hex.encodeHexString(nextKey.getEncoded()));
         Key encryptionKey = keyGenerator.generateKey();
-        keyGenerator.init(keyBits, secureRandom);
         safeKey.setEncryptionKey(Hex.encodeHexString(encryptionKey.getEncoded()));
 
         return safeKey;
     }
 
     @PostMapping("/key/validate")
-    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyRequest keyRequest) throws NoSuchAlgorithmException {
+    public ResponseEntity<Map<String, Object>> validateKey(@RequestParam String uuid, @RequestParam String key) throws NoSuchAlgorithmException {
         Map<String, Object> response = new HashMap<>();
-        if (keyRequest.getUuid() == null) {
+        if (uuid == null) {
             response.put("error", "Device id (UUID) is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-        if (keyRequest.getKey() == null) {
+        if (key == null) {
             response.put("error", "Key is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-        DeviceKey deviceKey = deviceKeyService.get(keyRequest.getUuid());
+        DeviceKey deviceKey = deviceKeyService.get(UUID.fromString(uuid));
         if (deviceKey == null) {
             response.put("error", "Device does not exist");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        if (keyRequest.getKey().equals(deviceKey.getKeyVal())) {
+        if (key.equals(deviceKey.getKeyVal())) {
             DeviceKey deviceKeyNext = deviceKeyService.getNext(deviceKey.getDeviceId(), deviceKey.getSeq() +1);
             if (deviceKeyNext == null){
                 response.put("key", "All keys are used. Contact system administrator");
@@ -171,13 +171,12 @@ public class AuthController {
                 Optional<SafeKey> safeKey = safeKeyService.get(deviceKey.getDeviceId());
                 if (safeKey.isPresent()) {
                     SafeKey safeKeyResult = safeKey.get();
+
+                    response.put("storageKey", safeKeyResult.getStorageKey());
                     response.put("responseKey", deviceKeySave.getResponseVal());
-                    response.put("currentKey", safeKeyResult.getCurrentKey());
-                    response.put("nextKey", safeKeyResult.getNextKey());
                     response.put("encryptionKey", safeKeyResult.getEncryptionKey());
 
-
-                    SafeKey safeKeyNext = generateSafeKeys(safeKeyResult.getDeviceId(), safeKeyResult.getNextKey(), safeKeyResult.getEncryptionKey());
+                    SafeKey safeKeyNext = generateSafeKeys(safeKeyResult.getDeviceId(), safeKeyResult.getDiskKey(), safeKeyResult.getEncryptionKey());
                     safeKeyService.save(safeKeyNext);
 
 

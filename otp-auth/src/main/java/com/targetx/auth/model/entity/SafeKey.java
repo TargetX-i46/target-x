@@ -15,11 +15,8 @@ public class SafeKey {
     @Column(name = "disk_key")
     private String diskKey;
 
-    @Column(name = "current_key")
-    private String currentKey;
-
-    @Column(name = "next_key")
-    private String nextKey;
+    @Column(name = "storage_key")
+    private String storageKey;
 
     @Column(name = "encryption_key")
     private String encryptionKey;
