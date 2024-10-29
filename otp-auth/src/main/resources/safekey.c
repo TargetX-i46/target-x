@@ -88,6 +88,12 @@ int main()
 
     printf("Current key: %s\n\n", currentKey);
 
+    if (strlen(currentKey)<5){
+       printf("OTP not found. Exiting program...\n");
+       return -1;
+    }
+
+
     /* Send to i46 server to verify if key matches
     ** Get 3 keys in the response */
     char resourceValidate[PATH_LEN] = "/target-x/key/validate";
@@ -147,7 +153,7 @@ int main()
       /*TODO */
 
     }else{
-       printf("Invalid key. Exiting program...");
+       printf("Invalid key. Exiting program...\n");
        return -1;
     }
 
@@ -170,7 +176,7 @@ int pop(char responseKey[])
       while(read_line(in, line, sizeof line)){
         if (index == 0){
           if (strcmp(responseKey,line)==0){
-            printf("Something is wrong. Popped element and response key does not match. Exiting program...");
+            printf("Something is wrong. Popped element and response key does not match. Exiting program...\n");
             exit(-1);
           }else
             printf("Popped element: %s\n", line);
