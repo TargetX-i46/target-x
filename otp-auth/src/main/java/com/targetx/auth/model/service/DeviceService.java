@@ -28,6 +28,9 @@ public class DeviceService {
     public Boolean existsByDeviceName(String deviceId) {
         return deviceRepository.existsByDeviceName(deviceId);
     }
+    public Device getByDeviceName(String deviceId) {
+        return deviceRepository.findByDeviceName(deviceId);
+    }
     public Device save(Device device) {
         return deviceRepository.save(device);
     }

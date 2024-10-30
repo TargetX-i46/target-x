@@ -61,11 +61,11 @@ public class AuthController {
     @GetMapping("/keys/download")
     public ResponseEntity<Resource> getAll(@RequestParam UUID uuid) {
         Optional<Device> optDevice = deviceService.get(uuid);
-        if (optDevice.isPresent()){
+        if (optDevice.isPresent()) {
             Device device = optDevice.get();
             List<DeviceKey> deviceKeys = deviceKeyService.getAll(uuid);
             StringBuilder inputBuffer = new StringBuilder();
-            for(DeviceKey key: deviceKeys){
+            for (DeviceKey key : deviceKeys) {
                 inputBuffer.append(key.getKeyVal());
                 inputBuffer.append('\n');
             }
@@ -89,7 +89,7 @@ public class AuthController {
                 logger.error(e.getMessage());
                 return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
             }
-        }else{
+        } else {
             logger.error("Device id not found");
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -100,38 +100,38 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> getDiskKey(@RequestParam UUID uuid) {
         Map<String, Object> response = new HashMap<>();
         Optional<SafeKey> optKey = safeKeyService.get(uuid);
-        if (optKey.isPresent()){
+        if (optKey.isPresent()) {
             response.put("diskKey", optKey.get().getDiskKey());
             return new ResponseEntity<>(response, HttpStatus.OK);
-        }else{
+        } else {
             response.put("error", "Device id not found");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
     }
 
-    private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String storageKey) throws NoSuchAlgorithmException{
+    private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String storageKey) throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator;
 
         SecureRandom secureRandom = new SecureRandom();
         SafeKey safeKey = new SafeKey();
         safeKey.setDeviceId(deviceId);
 
-        if (diskKey == null){
+        if (diskKey == null) {
             keyGenerator = KeyGenerator.getInstance("AES");
             keyGenerator.init(keyBits, secureRandom);
             Key keyDisk = keyGenerator.generateKey();
             safeKey.setDiskKey(Hex.encodeHexString(keyDisk.getEncoded()));
-        }else{
+        } else {
             safeKey.setDiskKey(diskKey);
         }
 
-        if (storageKey == null){
+        if (storageKey == null) {
             keyGenerator = KeyGenerator.getInstance("AES");
             keyGenerator.init(keyBits, secureRandom);
             Key current = keyGenerator.generateKey();
             safeKey.setStorageKey(Hex.encodeHexString(current.getEncoded()));
-        }else{
+        } else {
             safeKey.setStorageKey(storageKey);
         }
 
@@ -161,11 +161,11 @@ public class AuthController {
         }
 
         if (key.equals(deviceKey.getKeyVal())) {
-            DeviceKey deviceKeyNext = deviceKeyService.getNext(deviceKey.getDeviceId(), deviceKey.getSeq() +1);
-            if (deviceKeyNext == null){
+            DeviceKey deviceKeyNext = deviceKeyService.getNext(deviceKey.getDeviceId(), deviceKey.getSeq() + 1);
+            if (deviceKeyNext == null) {
                 response.put("key", "All keys are used. Contact system administrator");
                 return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
-            }else{
+            } else {
                 deviceKey.setResponseVal(deviceKeyNext.getKeyVal());
                 DeviceKey deviceKeySave = deviceKeyService.save(deviceKey);
                 Optional<SafeKey> safeKey = safeKeyService.get(deviceKey.getDeviceId());
@@ -181,7 +181,7 @@ public class AuthController {
 
 
                     return new ResponseEntity<>(response, HttpStatus.OK);
-                }else{
+                } else {
                     response.put("error", "Key not found");
                     return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
                 }
@@ -194,59 +194,44 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/keys")
-    public ResponseEntity<Resource> generateKeys(@RequestBody DeviceDTO deviceDTO) throws NoSuchAlgorithmException {
+    @PostMapping("/device")
+    public ResponseEntity<Map<String, Object>> newDevice(@RequestBody DeviceDTO deviceDTO) throws NoSuchAlgorithmException {
+        Map<String, Object> response = new HashMap<>();
         if (deviceDTO.getDeviceName() == null) {
             logger.error("Device name is required");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-
-            SecureRandom secureRandom = new SecureRandom();
-
-            StringBuilder inputBuffer = new StringBuilder();
-            HttpHeaders responseHeaders = new HttpHeaders();
-            Calendar cal = Calendar.getInstance();
-            Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
-
-            Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
-            Device deviceSave = deviceService.save(device);
-
-            SafeKey safeKey = generateSafeKeys(deviceSave.getId(), null, null);
-
-            safeKeyService.save(safeKey);
-
-            for (int i = 1; i <= MAX_KEYS; i++) {
-                keyGenerator.init(keyBits, secureRandom);
-                Key key = keyGenerator.generateKey();
-
-                DeviceKey deviceKey = new DeviceKey(deviceSave.getId(), i, Hex.encodeHexString(key.getEncoded()), null);
-                deviceKeyService.save(deviceKey);
-
-                inputBuffer.append(deviceKey.getKeyVal());
-                inputBuffer.append('\n');
-            }
-
-            try {
-
-                String inputStr = inputBuffer.toString();
-
-                ContentDisposition contentDisposition = ContentDisposition.builder("inline")
-                        .filename("device" + deviceDTO.getDeviceName() + "_secret-keys.csv")
-                        .build();
-                responseHeaders.setContentDisposition(contentDisposition);
-                InputStream stream = new ByteArrayInputStream(inputStr.getBytes(StandardCharsets.UTF_8));
-                InputStreamResource resource = new InputStreamResource(stream);
-                return ResponseEntity.ok()
-                        .headers(responseHeaders)
-                        .contentLength(stream.available())
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                        .body(resource);
-            } catch (IOException e) {
-                logger.error(e.getMessage());
-                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-
+        Device deviceExisting = deviceService.getByDeviceName(deviceDTO.getDeviceName());
+        if (deviceExisting != null){
+            response.put("uuid", deviceExisting.getId());
+            return new ResponseEntity<>(response, HttpStatus.OK);
         }
+
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+
+        SecureRandom secureRandom = new SecureRandom();
+
+        Calendar cal = Calendar.getInstance();
+        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
+
+        Device device = new Device(deviceDTO.getDeviceName(), deviceDTO.getDescription(), timestamp);
+        Device deviceSave = deviceService.save(device);
+
+        SafeKey safeKey = generateSafeKeys(deviceSave.getId(), null, null);
+
+        safeKeyService.save(safeKey);
+
+        for (int i = 1; i <= MAX_KEYS; i++) {
+            keyGenerator.init(keyBits, secureRandom);
+            Key key = keyGenerator.generateKey();
+
+            DeviceKey deviceKey = new DeviceKey(deviceSave.getId(), i, Hex.encodeHexString(key.getEncoded()), null);
+            deviceKeyService.save(deviceKey);
+        }
+
+        response.put("uuid", deviceSave.getId());
+        return new ResponseEntity<>(response, HttpStatus.OK);
+
+    }
 }

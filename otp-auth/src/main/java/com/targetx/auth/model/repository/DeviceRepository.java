@@ -12,4 +12,5 @@ import java.util.UUID;
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
     Boolean existsByDeviceName(String deviceName);
+    Device findByDeviceName(String deviceName);
 }
