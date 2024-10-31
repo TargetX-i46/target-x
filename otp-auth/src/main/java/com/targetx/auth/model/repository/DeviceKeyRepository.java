@@ -14,5 +14,5 @@ public interface DeviceKeyRepository extends JpaRepository<DeviceKey, Integer> {
     DeviceKey findTop1ByDeviceIdAndResponseValIsNullOrderBySeq(UUID deviceId);
     List<DeviceKey> findAllByDeviceIdAndResponseValIsNull(UUID deviceId);
 
-    List<DeviceKey> findAllByDeviceId(UUID deviceId);
+    List<DeviceKey> findAllByDeviceIdOrderBySeq(UUID deviceId);
 }

@@ -146,6 +146,8 @@ public class AuthController {
     @PostMapping("/key/validate")
     public ResponseEntity<Map<String, Object>> validateKey(@RequestParam String uuid, @RequestParam String key) throws NoSuchAlgorithmException {
         Map<String, Object> response = new HashMap<>();
+        logger.info(uuid +", " + key);
+
         if (uuid == null) {
             response.put("error", "Device id (UUID) is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -197,7 +199,7 @@ public class AuthController {
     @PostMapping("/device")
     public ResponseEntity<Map<String, Object>> newDevice(@RequestBody DeviceDTO deviceDTO) throws NoSuchAlgorithmException {
         Map<String, Object> response = new HashMap<>();
-        if (deviceDTO.getDeviceName() == null) {
+        if (deviceDTO.getDeviceName() == null || deviceDTO.getDeviceName().isEmpty()) {
             logger.error("Device name is required");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }

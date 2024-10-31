@@ -27,7 +27,7 @@ public class DeviceKeyService {
     }
 
     public List<DeviceKey> getAll(UUID deviceId) {
-        return deviceKeyRepository.findAllByDeviceId(deviceId);
+        return deviceKeyRepository.findAllByDeviceIdOrderBySeq(deviceId);
     }
 
     public List<DeviceKey> getAllUnused(UUID deviceId) {
