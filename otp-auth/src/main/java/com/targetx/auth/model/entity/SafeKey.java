@@ -9,7 +9,7 @@ import java.util.UUID;
 @Data
 public class SafeKey {
     @Id
-    @Column(name = "deviceId")
+    @Column(name = "device_id")
     private UUID deviceId;
 
     @Column(name = "disk_key")
