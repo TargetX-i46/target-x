@@ -1,6 +1,5 @@
 package com.targetx.auth.controller;
 
-import com.targetx.auth.model.KeyRequest;
 import com.targetx.auth.model.DeviceDTO;
 import com.targetx.auth.model.entity.Device;
 import com.targetx.auth.model.entity.DeviceKey;
