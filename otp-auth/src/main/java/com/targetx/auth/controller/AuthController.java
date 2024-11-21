@@ -109,6 +109,21 @@ public class AuthController {
 
     }
 
+    @GetMapping("/storageKey")
+    public ResponseEntity<Map<String, Object>> getStorageKey(@RequestParam UUID uuid) {
+        Map<String, Object> response = new HashMap<>();
+        Optional<SafeKey> optKey = safeKeyService.get(uuid);
+        if (optKey.isPresent()) {
+            response.put("storageKey", optKey.get().getStorageKey());
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } else {
+            response.put("error", "Device id not found");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+
+    }
+
+
     private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String storageKey) throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator;
 
