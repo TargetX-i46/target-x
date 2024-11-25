@@ -16,6 +16,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.service.annotation.PutExchange;
 
 import javax.crypto.KeyGenerator;
 import java.io.*;
@@ -209,6 +210,22 @@ public class AuthController {
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
     }
+
+    @PutExchange("/reset")
+    public ResponseEntity<Map<String, Object>> reset(@RequestParam UUID uuid) {
+        Map<String, Object> response = new HashMap<>();
+        Optional<SafeKey> optKey = safeKeyService.get(uuid);
+        if (optKey.isPresent()) {
+            deviceKeyService.reset(uuid);
+            response.put("success", "Successfully reset keys");
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } else {
+            response.put("error", "Device id not found");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+
+    }
+
 
     @PostMapping("/device")
     public ResponseEntity<Map<String, Object>> newDevice(@RequestBody DeviceDTO deviceDTO) throws NoSuchAlgorithmException {

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class DeviceKeyService {
@@ -32,6 +33,16 @@ public class DeviceKeyService {
 
     public List<DeviceKey> getAllUnused(UUID deviceId) {
         return deviceKeyRepository.findAllByDeviceIdAndResponseValIsNull(deviceId);
+    }
+
+    public void reset(UUID deviceId) {
+
+        List<DeviceKey> keys = deviceKeyRepository.findAllByDeviceIdOrderBySeq(deviceId);
+        keys = keys.stream().filter(k -> k.getResponseVal() != null).toList();
+        for (DeviceKey key : keys){
+            key.setResponseVal(null);
+            deviceKeyRepository.save(key);
+        }
     }
 
     public DeviceKey save(DeviceKey deviceKey) {
