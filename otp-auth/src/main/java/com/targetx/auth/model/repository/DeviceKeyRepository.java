@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface DeviceKeyRepository extends JpaRepository<DeviceKey, Integer> {
     DeviceKey findByDeviceIdAndSeq(UUID deviceId, Integer seq);
     DeviceKey findTop1ByDeviceIdAndResponseValIsNullOrderBySeq(UUID deviceId);
+    DeviceKey findByDeviceIdAndKeyVal(UUID deviceId, String keyVal);
     List<DeviceKey> findAllByDeviceIdAndResponseValIsNull(UUID deviceId);
 
     List<DeviceKey> findAllByDeviceIdOrderBySeq(UUID deviceId);

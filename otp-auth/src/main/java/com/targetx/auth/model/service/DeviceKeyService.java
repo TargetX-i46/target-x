@@ -27,6 +27,11 @@ public class DeviceKeyService {
         return deviceKeyRepository.findTop1ByDeviceIdAndResponseValIsNullOrderBySeq(deviceId);
     }
 
+    public DeviceKey getExists(UUID deviceId, String key) {
+        return deviceKeyRepository.findByDeviceIdAndKeyVal(deviceId, key);
+    }
+
+
     public List<DeviceKey> getAll(UUID deviceId) {
         return deviceKeyRepository.findAllByDeviceIdOrderBySeq(deviceId);
     }

@@ -124,6 +124,20 @@ public class AuthController {
 
     }
 
+    @GetMapping("/encryptionKey")
+    public ResponseEntity<Map<String, Object>> getEncryptionKey(@RequestParam UUID uuid) {
+        Map<String, Object> response = new HashMap<>();
+        Optional<SafeKey> optKey = safeKeyService.get(uuid);
+        if (optKey.isPresent()) {
+            response.put("encryptionKey", optKey.get().getEncryptionKey());
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } else {
+            response.put("error", "Device id not found");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+
+    }
+
 
     private SafeKey generateSafeKeys(UUID deviceId, String diskKey, String storageKey) throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator;
@@ -180,7 +194,7 @@ public class AuthController {
         if (key.equals(deviceKey.getKeyVal())) {
             DeviceKey deviceKeyNext = deviceKeyService.getNext(deviceKey.getDeviceId(), deviceKey.getSeq() + 1);
             if (deviceKeyNext == null) {
-                response.put("key", "All keys are used. Contact system administrator");
+                response.put("fail", "No keys left. Contact system administrator");
                 return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
             } else {
                 deviceKey.setResponseVal(deviceKeyNext.getKeyVal());
@@ -206,12 +220,28 @@ public class AuthController {
             }
 
         } else {
-            response.put("fail", "Invalid key");
+            DeviceKey deviceKeyCheck =  deviceKeyService.getExists(UUID.fromString(uuid), key);
+            if (deviceKeyCheck.getResponseVal() == null){ //future key
+                response.put("fail", "Missing key");
+            }else {
+                if (deviceKey.getSeq() > 1){
+                    DeviceKey deviceKeyLast = deviceKeyService.getNext(deviceKeyCheck.getDeviceId(), deviceKey.getSeq()-1);
+                    if (key.equals(deviceKeyLast.getKeyVal())){
+                        response.put("fail", "Last key");
+                    }else{ //old key
+                        response.put("fail", "Old key");
+                    }
+                }else{
+                    response.put("fail", "Last key");
+                }
+            }
+
+            //response.put("fail", "Invalid key");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
     }
 
-    @PutExchange("/reset")
+    @PutMapping("/reset")
     public ResponseEntity<Map<String, Object>> reset(@RequestParam UUID uuid) {
         Map<String, Object> response = new HashMap<>();
         Optional<SafeKey> optKey = safeKeyService.get(uuid);
