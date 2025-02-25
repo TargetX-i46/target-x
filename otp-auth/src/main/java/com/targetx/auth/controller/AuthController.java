@@ -220,6 +220,12 @@ public class AuthController {
             }
 
         } else {
+            Optional<SafeKey> safeKey = safeKeyService.get(deviceKey.getDeviceId());
+            if (safeKey.isPresent()) {
+                SafeKey safeKeyResult = safeKey.get();
+                response.put("storageKey", safeKeyResult.getStorageKey());
+                response.put("encryptionKey", safeKeyResult.getEncryptionKey());
+            }
             DeviceKey deviceKeyCheck =  deviceKeyService.getExists(UUID.fromString(uuid), key);
             if (deviceKeyCheck.getResponseVal() == null){ //future key
                 response.put("fail", "Missing key");
