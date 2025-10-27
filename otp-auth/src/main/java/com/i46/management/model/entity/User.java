@@ -1,4 +1,4 @@
-package com.targetx.auth.model.entity;
+package com.i46.management.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -6,16 +6,16 @@ import lombok.Data;
 import java.sql.Timestamp;
 import java.util.UUID;
 
-@Entity(name = "device")
+@Entity(name = "device_user")
 @Data
-public class Device {
+public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "device_name")
-    private String deviceName;
+    @Column(name = "app_id")
+    private String appId;
 
     @Column(name = "description")
     private String description;
@@ -26,13 +26,19 @@ public class Device {
     @Column(name = "last_login")
     private Timestamp lastLogin;
 
-    public Device() {
+    public User() {
     }
 
-    public Device(String deviceName, String description, Timestamp createdAt) {
-        this.deviceName = deviceName;
+    public User(String appId, String description, Timestamp createdAt) {
+        this.appId = appId;
         this.description = description;
         this.createdAt = createdAt;
+        this.lastLogin = createdAt;
     }
 
+    public User(UUID id, String description, Timestamp lastLogin) {
+        this.id = id;
+        this.description = description;
+        this.lastLogin = lastLogin;
+    }
 }

@@ -1,4 +1,4 @@
-package com.targetx.auth.config;
+package com.i46.management.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,11 +32,9 @@ public class SecurityConfig {
     // Configuring HttpSecurity
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-                http
-                .csrf().disable()
-                .authorizeRequests().anyRequest().authenticated()
-                .and()
-                .httpBasic();
+                http.csrf().disable()
+                        .authorizeRequests().anyRequest().authenticated()
+                        .and().httpBasic();
 
         return http.build();
     }
