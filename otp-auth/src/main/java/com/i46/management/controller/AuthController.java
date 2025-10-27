@@ -6,6 +6,7 @@ import com.i46.management.model.UserDTO;
 import com.i46.management.model.entity.OTP;
 import com.i46.management.model.entity.User;
 import com.i46.management.model.entity.Storage;
+import com.i46.management.model.service.AppService;
 import com.i46.management.model.service.OTPService;
 import com.i46.management.model.service.UserService;
 import com.i46.management.model.service.StorageService;
@@ -14,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.KeyGenerator;
@@ -39,9 +42,18 @@ public class AuthController {
     private final Integer keyBits = 256;
 
 
-    @PostMapping("/users")
-    public ResponseEntity<Map<String, Object>> newUser(@RequestBody UserDTO userDTO) {
+    @Autowired
+    private AppService appService;
+
+    @GetMapping("/users")
+    public ResponseEntity<Map<String, Object>> newUser(@AuthenticationPrincipal OAuth2User oauth2User) {
         Map<String, Object> response = new HashMap<>();
+        Calendar cal = Calendar.getInstance();
+        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
+
+        UserDTO userDTO = new UserDTO("google", oauth2User.getAttribute("sub"), oauth2User.getAttribute("name"),
+                oauth2User.getAttribute("email"), null, timestamp, timestamp);
+
         if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
             response.put("error", "App ID is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -53,13 +65,15 @@ public class AuthController {
             return new ResponseEntity<>(response, HttpStatus.OK);
         }
 
-        Calendar cal = Calendar.getInstance();
-        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
-
-        User user = new User(userDTO.getAppId(), userDTO.getDescription(), timestamp);
+        User user = new User(userDTO);
         User userSave = userService.save(user);
 
         response.put("uuid", userSave.getId());
+        response.put("name", userSave.getName());
+        response.put("email", userSave.getEmail());
+        response.put("appId", userSave.getAppId());
+        response.put("token", appService.getJwtToken());
+
         return new ResponseEntity<>(response, HttpStatus.CREATED);
 
     }
