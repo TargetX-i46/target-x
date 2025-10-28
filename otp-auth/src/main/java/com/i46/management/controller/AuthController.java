@@ -45,15 +45,52 @@ public class AuthController {
     @Autowired
     private AppService appService;
 
-    @GetMapping("/users")
-    public ResponseEntity<Map<String, Object>> newUser(@AuthenticationPrincipal OAuth2User oauth2User) {
+
+    @GetMapping("/welcome")
+    public String welcome(@AuthenticationPrincipal OAuth2User oauth2User){
+        if (oauth2User != null) {
+            return "Hello, " + oauth2User.getAttribute("name") + "! Your email is: " + oauth2User.getAttribute("email");
+        }
+        return "User not authenticated.";
+    }
+
+//    @PostMapping("/users")
+//    public ResponseEntity<Map<String, Object>> newUser(@AuthenticationPrincipal OAuth2User oauth2User) {
+//        Map<String, Object> response = new HashMap<>();
+//        Calendar cal = Calendar.getInstance();
+//        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
+//
+//        UserDTO userDTO = new UserDTO("google", oauth2User.getAttribute("sub"), oauth2User.getAttribute("name"),
+//                oauth2User.getAttribute("email"), null, timestamp, timestamp);
+//
+//        if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
+//            response.put("error", "App ID is required");
+//            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+//        }
+//
+//        User userExisting = userService.getByAppId(userDTO.getAppId());
+//        if (userExisting != null){
+//            response.put("uuid", userExisting.getId());
+//            return new ResponseEntity<>(response, HttpStatus.OK);
+//        }
+//
+//        User user = new User(userDTO);
+//        User userSave = userService.save(user);
+//
+//        response.put("uuid", userSave.getId());
+//        response.put("name", userSave.getName());
+//        response.put("email", userSave.getEmail());
+//        response.put("appId", userSave.getAppId());
+//        response.put("token", appService.getJwtToken());
+//
+//        return new ResponseEntity<>(response, HttpStatus.CREATED);
+//
+//    }
+
+
+    @PostMapping("/users")
+    public ResponseEntity<Map<String, Object>> newUser(@RequestBody UserDTO userDTO) {
         Map<String, Object> response = new HashMap<>();
-        Calendar cal = Calendar.getInstance();
-        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
-
-        UserDTO userDTO = new UserDTO("google", oauth2User.getAttribute("sub"), oauth2User.getAttribute("name"),
-                oauth2User.getAttribute("email"), null, timestamp, timestamp);
-
         if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
             response.put("error", "App ID is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -72,29 +109,10 @@ public class AuthController {
         response.put("name", userSave.getName());
         response.put("email", userSave.getEmail());
         response.put("appId", userSave.getAppId());
-        response.put("token", appService.getJwtToken());
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
 
     }
-
-//    @GetMapping("/users/check")
-//    public ResponseEntity<Map<String, Object>> getUser(@RequestParam String appId) {
-//        Map<String, Object> response = new HashMap<>();
-//        if (appId == null || appId.isBlank()) {
-//            logger.error("App ID is required");
-//            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-//        }
-//
-//        User userExisting = userService.getByAppId(appId);
-//        if (userExisting == null) {
-//            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-//        }else{
-//            response.put("uuid", userExisting.getId());
-//            return new ResponseEntity<>(response, HttpStatus.OK);
-//        }
-//
-//    }
 
     @PostMapping("/storage")
     public ResponseEntity<Map<String, Object>> newStorageItem(@RequestBody StorageDTO storageDTO) throws NoSuchAlgorithmException {
