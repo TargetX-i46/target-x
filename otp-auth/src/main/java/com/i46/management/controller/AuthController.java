@@ -24,6 +24,7 @@ import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -89,26 +90,23 @@ public class AuthController {
 
 
     @PostMapping("/users")
-    public ResponseEntity<Map<String, Object>> newUser(@RequestBody UserDTO userDTO) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<Map<Object, Object>> newUser(@RequestBody UserDTO userDTO) {
+        Map<Object, Object> response = new HashMap<>();
         if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
             response.put("error", "App ID is required");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-
+        userDTO.setCreatedAt(Timestamp.valueOf(LocalDateTime.now()));
         User userExisting = userService.getByAppId(userDTO.getAppId());
         if (userExisting != null){
-            response.put("uuid", userExisting.getId());
+            response.put("data", userExisting);
             return new ResponseEntity<>(response, HttpStatus.OK);
         }
 
         User user = new User(userDTO);
         User userSave = userService.save(user);
 
-        response.put("uuid", userSave.getId());
-        response.put("name", userSave.getName());
-        response.put("email", userSave.getEmail());
-        response.put("appId", userSave.getAppId());
+        response.put("data", userSave);
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
 
@@ -148,7 +146,7 @@ public class AuthController {
         String otp = generateOTP(storageSave.getId());
 
         response.put("key", otp);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
 
     }
 
