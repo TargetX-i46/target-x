@@ -6,6 +6,8 @@ import com.i46.management.model.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class UserService {
     private final UserRepository userRepository;
@@ -14,7 +16,7 @@ public class UserService {
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
-    public User getByAppId(String appId) {
+    public Optional<User> getByAppId(String appId) {
         return userRepository.findByAppId(appId);
     }
     public User save(User user) {

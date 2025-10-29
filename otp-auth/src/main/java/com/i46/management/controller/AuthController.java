@@ -2,21 +2,18 @@ package com.i46.management.controller;
 
 import com.i46.management.model.KeyDTO;
 import com.i46.management.model.StorageDTO;
-import com.i46.management.model.UserDTO;
 import com.i46.management.model.entity.OTP;
-import com.i46.management.model.entity.User;
 import com.i46.management.model.entity.Storage;
-import com.i46.management.model.service.AppService;
+import com.i46.management.model.entity.User;
+import com.i46.management.model.service.IdTokenVerify;
 import com.i46.management.model.service.OTPService;
-import com.i46.management.model.service.UserService;
 import com.i46.management.model.service.StorageService;
+import com.i46.management.model.service.UserService;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import javax.crypto.KeyGenerator;
@@ -24,13 +21,11 @@ import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
-
     @Autowired
     UserService userService;
 
@@ -40,80 +35,25 @@ public class AuthController {
     @Autowired
     OTPService otpService;
 
+    @Autowired
+    private IdTokenVerify idTokenVerify;
+
     private final Integer keyBits = 256;
 
 
-    @Autowired
-    private AppService appService;
-
-
     @GetMapping("/welcome")
-    public String welcome(@AuthenticationPrincipal OAuth2User oauth2User){
-        if (oauth2User != null) {
-            return "Hello, " + oauth2User.getAttribute("name") + "! Your email is: " + oauth2User.getAttribute("email");
-        }
-        return "User not authenticated.";
-    }
-
-//    @PostMapping("/users")
-//    public ResponseEntity<Map<String, Object>> newUser(@AuthenticationPrincipal OAuth2User oauth2User) {
-//        Map<String, Object> response = new HashMap<>();
-//        Calendar cal = Calendar.getInstance();
-//        Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
-//
-//        UserDTO userDTO = new UserDTO("google", oauth2User.getAttribute("sub"), oauth2User.getAttribute("name"),
-//                oauth2User.getAttribute("email"), null, timestamp, timestamp);
-//
-//        if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
-//            response.put("error", "App ID is required");
-//            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    public String welcome(){
+//        if (oauth2User != null) {
+//            return "Hello, " + oauth2User.getAttribute("name") + "! Your email is: " + oauth2User.getAttribute("email");
 //        }
-//
-//        User userExisting = userService.getByAppId(userDTO.getAppId());
-//        if (userExisting != null){
-//            response.put("uuid", userExisting.getId());
-//            return new ResponseEntity<>(response, HttpStatus.OK);
-//        }
-//
-//        User user = new User(userDTO);
-//        User userSave = userService.save(user);
-//
-//        response.put("uuid", userSave.getId());
-//        response.put("name", userSave.getName());
-//        response.put("email", userSave.getEmail());
-//        response.put("appId", userSave.getAppId());
-//        response.put("token", appService.getJwtToken());
-//
-//        return new ResponseEntity<>(response, HttpStatus.CREATED);
-//
-//    }
-
-
-    @PostMapping("/users")
-    public ResponseEntity<Map<Object, Object>> newUser(@RequestBody UserDTO userDTO) {
-        Map<Object, Object> response = new HashMap<>();
-        if (userDTO.getAppId() == null || userDTO.getAppId().isEmpty()) {
-            response.put("error", "App ID is required");
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-        }
-        userDTO.setCreatedAt(Timestamp.valueOf(LocalDateTime.now()));
-        User userExisting = userService.getByAppId(userDTO.getAppId());
-        if (userExisting != null){
-            response.put("data", userExisting);
-            return new ResponseEntity<>(response, HttpStatus.OK);
-        }
-
-        User user = new User(userDTO);
-        User userSave = userService.save(user);
-
-        response.put("data", userSave);
-
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-
+        return "User authenticated.";
     }
 
     @PostMapping("/storage")
     public ResponseEntity<Map<String, Object>> newStorageItem(@RequestBody StorageDTO storageDTO) throws NoSuchAlgorithmException {
+        Optional<User> user = userService.getByAppId(idTokenVerify.userDetails.get("appId").toString());
+        user.ifPresent(value -> storageDTO.setUserId(value.getId()));
+
         Map<String, Object> response = new HashMap<>();
         if (storageDTO.getUserId()== null) {
             response.put("error", "User ID is required");
@@ -166,6 +106,9 @@ public class AuthController {
 
     @PostMapping("/validate")
     public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyDTO keyDTO){
+        Optional<User> user = userService.getByAppId(idTokenVerify.userDetails.get("appId").toString());
+        user.ifPresent(value -> keyDTO.setUserId(value.getId()));
+
         Map<String, Object> response = new HashMap<>();
         if (keyDTO.getUserId()== null) {
             response.put("error", "User ID is required");
