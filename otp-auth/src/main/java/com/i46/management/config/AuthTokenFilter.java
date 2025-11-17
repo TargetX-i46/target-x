@@ -47,7 +47,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 String appId = idTokenVerify.userDetails.get("appId") == null ? null : idTokenVerify.userDetails.get("appId").toString();
                 String name = idTokenVerify.userDetails.get("name") == null ? null :  idTokenVerify.userDetails.get("name").toString();
                 String email = idTokenVerify.userDetails.get("email") == null ? null : idTokenVerify.userDetails.get("email").toString();
-                String provider = "google";
+                String provider = idTokenVerify.userDetails.get("provider") == null ? "google" : idTokenVerify.userDetails.get("provider").toString();
                 logger.info(name + " " + email + " " + provider);
                 Optional<User> userDetails = userService.getByAppId(appId);
                 if(userDetails.isPresent()) {
