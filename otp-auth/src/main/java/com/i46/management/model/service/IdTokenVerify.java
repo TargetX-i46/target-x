@@ -59,7 +59,7 @@ public class IdTokenVerify {
             // block on response
             DocumentSnapshot document = future.get();
             if (document.exists()) {
-                System.out.println("Document data: " + document.getData());
+                logger.info("Document data: " + document.getData());
 
                 user.put("appId", document.getString("uid"));
                 user.put("email", document.getString("email"));

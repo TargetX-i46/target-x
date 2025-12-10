@@ -3,6 +3,7 @@ package com.i46.management.model.service;
 
 import com.i46.management.model.entity.Storage;
 import com.i46.management.model.repository.StorageRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,11 @@ public class StorageService {
     public Optional<Storage> get(Integer id) {
         return storageRepository.findById(id);
     }
+    public Storage findByUserIdAndSlot(UUID userId, Integer slot) {
+        return storageRepository.findByUserIdAndSlot(userId, slot);
+    }
+
+    @Transactional
     public Storage save(Storage storage) {
         return storageRepository.save(storage);
     }

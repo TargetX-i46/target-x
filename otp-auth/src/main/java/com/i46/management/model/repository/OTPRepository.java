@@ -8,4 +8,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface OTPRepository extends JpaRepository<OTP, Integer> {
     OTP findByKey(String key);
+
+    void deleteByStorageId(Integer storageId);
 }

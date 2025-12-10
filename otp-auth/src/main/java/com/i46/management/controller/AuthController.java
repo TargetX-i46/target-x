@@ -74,21 +74,33 @@ public class AuthController {
         }
 
         Storage storage = new Storage(storageDTO.getUserId(), storageDTO.getSlot(), storageDTO.getData(), storageDTO.getNTimes(), storageDTO.getRemarks());
+        Storage storageSave;
 
         if (storageService.existsStorageByUserIdAndSlot(storageDTO.getUserId(),storageDTO.getSlot())){
-            response.put("error", "Slot taken");
-            return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+            //response.put("error", "Slot taken");
+           // return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+            Storage existing = storageService.findByUserIdAndSlot(storageDTO.getUserId(),storageDTO.getSlot());
+            existing.setData(storageDTO.getData());
+            existing.setNTimes(storageDTO.getNTimes());
+            existing.setRemarks(storageDTO.getRemarks());
+            storageSave = storageService.save(existing);
+
+            otpService.deleteByStorageId(existing.getId());
+
+            String otp = generateOTP(storageSave.getId());
+
+            response.put("key", otp);
+        }else {
+            storageSave = storageService.save(storage);
+            String otp = generateOTP(storageSave.getId());
+
+            response.put("key", otp);
         }
-
-
-        Storage storageSave = storageService.save(storage);
-
-        String otp = generateOTP(storageSave.getId());
-
-        response.put("key", otp);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
 
+
     }
+
 
     private String generateOTP(Integer storageId) throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");

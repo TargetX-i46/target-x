@@ -3,6 +3,7 @@ package com.i46.management.model.service;
 
 import com.i46.management.model.entity.User;
 import com.i46.management.model.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,8 @@ public class UserService {
     public Optional<User> getByAppId(String appId) {
         return userRepository.findByAppId(appId);
     }
+
+    @Transactional
     public User save(User user) {
         return userRepository.save(user);
     }

@@ -10,5 +10,5 @@ import java.util.UUID;
 @Repository
 public interface StorageRepository extends JpaRepository<Storage, Integer> {
     boolean existsStorageByUserIdAndSlot(UUID userId, Integer slot);
-    
+    Storage findByUserIdAndSlot(UUID userId, Integer slot);
 }
