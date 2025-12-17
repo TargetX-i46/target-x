@@ -155,7 +155,7 @@ public class AuthController {
                 return new ResponseEntity<>(response, HttpStatus.OK);
 
             }else{
-                response.put("response", "Key already activated");
+                response.put("error", "This token has already been validated.");
                 response.put("activatedAt", otpExisting.getActivatedAt());
                 response.put("remarks", storage.get().getRemarks());
                 return new ResponseEntity<>(response, HttpStatus.CONFLICT);

@@ -41,7 +41,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        try {
+
             String jwt = parseJwt(request);
             if (jwt != null && idTokenVerify.validateJwtToken(jwt)) {
                 String appId = idTokenVerify.userDetails.get("appId") == null ? null : idTokenVerify.userDetails.get("appId").toString();
@@ -83,9 +83,6 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-        } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e);
-        }
 
         filterChain.doFilter(request, response);
     }
