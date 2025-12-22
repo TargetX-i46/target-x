@@ -152,6 +152,7 @@ public class AuthController {
                 //String otp = generateOTP(storage.get().getId());
 
                 response.put("data", storage.get().getData());
+                response.put("remarks", storage.get().getRemarks());
                 return new ResponseEntity<>(response, HttpStatus.OK);
 
             }else{
