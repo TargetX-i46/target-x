@@ -22,6 +22,8 @@ public class OTP {
     @Column(name = "activated_at")
     private Timestamp activatedAt;
 
+    @Column(name = "n_times_activated")
+    private Integer nTimesActivated;
 
     public OTP() {
     }
@@ -29,5 +31,6 @@ public class OTP {
     public OTP(Integer storageId, String key) {
         this.storageId = storageId;
         this.key = key;
+        this.nTimesActivated = 0;
     }
 }

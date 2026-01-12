@@ -117,7 +117,7 @@ public class AuthController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyDTO keyDTO) throws NoSuchAlgorithmException {
+    public ResponseEntity<Map<String, Object>> validateKey(@RequestBody KeyDTO keyDTO) {
         Optional<User> user = userService.getByAppId(idTokenVerify.userDetails.get("appId").toString());
         user.ifPresent(value -> keyDTO.setUserId(value.getId()));
 
@@ -142,10 +142,11 @@ public class AuthController {
                 return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
             }
 
-            if (otpExisting.getActivatedAt() == null){
+            if (otpExisting.getActivatedAt() == null || otpExisting.getNTimesActivated() < storage.get().getNTimes()){
                 Calendar cal = Calendar.getInstance();
                 Timestamp timestamp = new Timestamp(cal.getTimeInMillis());
                 otpExisting.setActivatedAt(timestamp);
+                otpExisting.setNTimesActivated(otpExisting.getNTimesActivated() + 1);
                 otpService.save(otpExisting);
 
                 //new otp
