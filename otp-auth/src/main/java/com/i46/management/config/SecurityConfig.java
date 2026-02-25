@@ -1,10 +1,5 @@
 package com.i46.management.config;
 
-
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,8 +9,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.io.IOException;
-import java.io.InputStream;
 
 @Configuration
 @EnableWebSecurity
@@ -35,7 +28,7 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/error").permitAll() // Allow access to root and error pages
+                        .requestMatchers("/*").permitAll() // Allow access to root and error pages
                         .anyRequest().authenticated() // All other requests require authentication
                 );
 
@@ -44,28 +37,4 @@ public class SecurityConfig {
         return http.build();
     }
 
-
-//    // Configuring HttpSecurity
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .authorizeHttpRequests(authorize -> authorize
-//                        .anyRequest().permitAll() // Allow all requests without authentication or authorization
-//                )
-//                .csrf(csrf -> csrf.disable()); // Disable CSRF for simplicity, consider enabling in production
-//        return http.build();
-//    }
-
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .authorizeHttpRequests(authorize -> authorize
-//                        .requestMatchers("/", "/error").permitAll() // Allow access to root and error pages
-//                        .anyRequest().authenticated() // All other requests require authentication
-//                )
-//                .oauth2Login(oauth2Login -> oauth2Login
-//                        .loginPage("/oauth2/authorization/google") // Optional: Custom login page
-//                );
-//        return http.build();
-//    }
 }
